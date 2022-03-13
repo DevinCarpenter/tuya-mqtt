@@ -1,10 +1,7 @@
 const TuyAPI = require('tuyapi')
 const { evaluate } = require('mathjs')
 const utils = require('../lib/utils')
-const debug = require('debug')('tuya-mqtt:tuyapi')
-const debugState = require('debug')('tuya-mqtt:state')
-const debugCommand = require('debug')('tuya-mqtt:command')
-const debugError = require('debug')('tuya-mqtt:error')
+const colors = require('../lib/colors')
 
 class TuyaDevice {
     constructor(deviceInfo) {
@@ -59,11 +56,11 @@ class TuyaDevice {
         // Listen for device data and call update DPS function if valid
         this.device.on('data', (data) => {
             if (typeof data === 'object') {
-                debug('Received JSON data from device '+this.options.id+' ->', JSON.stringify(data.dps))
+                console.log('Received JSON data from device ' + this.options.id + ' -> ' + JSON.stringify(data.dps))
                 this.updateState(data)
             } else {
                 if (data !== 'json obj data unvalid') {
-                    debug('Received string data from device '+this.options.id+' ->', data.replace(/[^a-zA-Z0-9 ]/g, ''))
+                    console.log('Received string data from device ' + this.options.id + ' -> ', data.replace(/[^a-zA-Z0-9 ]/g, ''))
                 }
             }
         })
@@ -78,7 +75,8 @@ class TuyaDevice {
             // Wait one second to check if device is really connected before initializing
             await utils.sleep(1)
             if (this.device.isConnected()) {
-                debug('Connected to device ' + this.toString())
+                console.log('Connected to device ' + this.toString())
+                console.log('Base Topic: ' + this.baseTopic)
                 this.heartbeatsMissed = 0
                 this.publishMqtt(this.baseTopic+'status', 'online')
                 this.init()
@@ -89,14 +87,14 @@ class TuyaDevice {
         this.device.on('disconnected', async () => {
             this.connected = false
             this.publishMqtt(this.baseTopic+'status', 'offline')
-            debug('Disconnected from device ' + this.toString())
+            console.log('Disconnected from device ' + this.toString())
             await utils.sleep(5)
             this.reconnect()
         })
 
         // On connect error call reconnect
         this.device.on('error', async (err) => {
-            debugError(err)
+            console.error(err)
             await utils.sleep(1)
             this.reconnect()
         })
@@ -118,7 +116,7 @@ class TuyaDevice {
                 this.dps[key].val = await this.device.get({"dps": key})
                 this.dps[key].updated = true
             } catch {
-                debugError('Could not get value for device DPS key '+key)
+                console.error('Could not get value for device DPS key ' + key)
             }
         }
         this.connected = true
@@ -192,7 +190,7 @@ class TuyaDevice {
             }
             data = JSON.stringify(data)
             const dpsStateTopic = dpsTopic + '/state'
-            debugState('MQTT DPS JSON: ' + dpsStateTopic + ' -> ', data)
+            console.log(colors.magenta, 'MQTT DPS JSON: ' + dpsStateTopic + ' -> ' + data)
             this.publishMqtt(dpsStateTopic, data, false)
 
             // Publish dps/<#>/state value for each device DPS
@@ -201,13 +199,13 @@ class TuyaDevice {
                 if (this.dps[key].updated) {
                     const dpsKeyTopic = dpsTopic + '/' + key + '/state'
                     const data = this.dps.hasOwnProperty(key) ? this.dps[key].val.toString() : 'None'
-                    debugState('MQTT DPS'+key+': '+dpsKeyTopic+' -> ', data)
+                    console.log(colors.magenta, 'MQTT DPS ' + key + ': ' + dpsKeyTopic + ' -> ' + data)
                     this.publishMqtt(dpsKeyTopic, data, false)
                     this.dps[key].updated = false
                 }
             }
         } catch (e) {
-            debugError(e);
+            console.error(e);
         }
     }
     
@@ -264,17 +262,17 @@ class TuyaDevice {
     processCommand(message, commandTopic) {
         let command
         if (utils.isJsonString(message)) {
-            debugCommand('Received MQTT command message is a JSON string')
+            console.log(colors.cyan, 'Received MQTT command message is a JSON string')
             command = JSON.parse(message);
         } else {
-            debugCommand('Received MQTT command message is a text string')
+            console.log(colors.cyan, 'Received MQTT command message is a text string')
             command = message.toLowerCase()
         }
 
         // If get-states command, then updates all states and re-publish topics
         if (commandTopic === 'command' && command === 'get-states') {
             // Handle "get-states" command to update device state
-            debugCommand('Received command: ', command)
+            console.log(colors.cyan, 'Received command: ' + command)
             this.getStates()
         } else {
             // Call device specific command topic handler
@@ -289,13 +287,13 @@ class TuyaDevice {
         const deviceTopic = this.deviceTopics.hasOwnProperty(stateTopic) ? this.deviceTopics[stateTopic] : ''
 
         if (deviceTopic) {
-            debugCommand('Device '+this.options.id+' received command topic: '+commandTopic+', message: '+command)
+            console.log(colors.cyan, 'Device ' + this.options.id + ' received command topic: ' + commandTopic + ', message: ' + command)
             let commandResult = this.sendTuyaCommand(command, deviceTopic)
             if (!commandResult) {
-                debugCommand('Command topic '+this.baseTopic+commandTopic+' received invalid value: '+command)
+                console.log(colors.cyan, 'Command topic ' + this.baseTopic + commandTopic + ' received invalid value: ' + command)
             }
         } else {
-            debugCommand('Invalid command topic '+this.baseTopic+commandTopic+' for device id: '+this.config.id)
+            console.log(colors.cyan, 'Invalid command topic ' + this.baseTopic + commandTopic + ' for device id: ' + this.config.id)
             return
         }
     }
@@ -304,20 +302,20 @@ class TuyaDevice {
     processDpsCommand(message) {
         if (utils.isJsonString(message)) {
             const command = JSON.parse(message)
-            debugCommand('Parsed Tuya JSON command: '+JSON.stringify(command))
+            console.log(colors.cyan, 'Parsed Tuya JSON command: ' + JSON.stringify(command))
             this.set(command)
         } else {
-            debugCommand('DPS command topic requires Tuya style JSON value')
+            console.log(colors.cyan, 'DPS command topic requires Tuya style JSON value')
         }
     }
 
     // Process text based Tuya commands via DPS key command topics
     processDpsKeyCommand(message, dpsKey) {
         if (utils.isJsonString(message)) {
-            debugCommand('Individual DPS command topics do not accept JSON values')
+            console.log(colors.cyan, 'Individual DPS command topics do not accept JSON values')
         } else {
             const dpsMessage = this.parseDpsMessage(message)
-            debugCommand('Received command for DPS'+dpsKey+': ', message)
+            console.log(colors.cyan, 'Received command for DPS ' + dpsKey + ': ' + message)
             const command = {
                 dps: dpsKey,
                 set: dpsMessage
@@ -411,12 +409,12 @@ class TuyaDevice {
         if (isNaN(command)) {
             return invalid
         } else if (deviceTopic.hasOwnProperty('topicMin') && command < deviceTopic.topicMin) {
-            debugError('Received command value "'+command+'" that is less than the configured minimum value')
-            debugError('Overriding command with minimum value '+deviceTopic.topicMin)
+            console.error('Received command value "' + command + '" that is less than the configured minimum value')
+            console.error('Overriding command with minimum value ' + deviceTopic.topicMin)
             command = deviceTopic.topicMin
         } else if (deviceTopic.hasOwnProperty('topicMax') && command > deviceTopic.topicMax) {
-            debugError('Received command value "'+command+'" that is greater than the configured maximum value')
-            debugError('Overriding command with maximum value: '+deviceTopic.topicMax)
+            console.error('Received command value "' + command + '" that is greater than the configured maximum value')
+            console.error('Overriding command with maximum value: ' + deviceTopic.topicMax)
             command = deviceTopic.topicMax
         }
 
@@ -568,7 +566,7 @@ class TuyaDevice {
     }
 
     set(command) {
-        debug('Set device '+this.options.id+' -> '+JSON.stringify(command))
+        console.log('Set device ' + this.options.id + ' -> ' + JSON.stringify(command))
         return new Promise((resolve, reject) => {
             this.device.set(command).then((result) => {
                 resolve(result)
@@ -579,17 +577,17 @@ class TuyaDevice {
     // Search for and connect to device
     connectDevice() {
         // Find device on network
-        debug('Search for device id '+this.options.id)
+        console.log('Search for device id ' + this.options.id)
         this.device.find().then(() => {
-            debug('Found device id '+this.options.id)
+            console.log('Found device id ' + this.options.id)
             // Attempt connection to device
             this.device.connect().catch((error) => {
-                debugError(error.message)
+                console.error(error.message)
                 this.reconnect()
             })
         }).catch(async (error) => {
-            debugError(error.message)
-            debugError('Will attempt to find device again in 60 seconds')
+            console.error(error.message)
+            console.error('Will attempt to find device again in 60 seconds')
             await utils.sleep(60)
             this.connectDevice()
         })
@@ -599,7 +597,7 @@ class TuyaDevice {
     async reconnect() {
         if (!this.reconnecting) {
             this.reconnecting = true
-            debugError('Error connecting to device id '+this.options.id+'...retry in 10 seconds.')
+            console.error('Error connecting to device id ' + this.options.id + '...retry in 10 seconds.')
             await utils.sleep(10)
             this.connectDevice()
             this.reconnecting = false
@@ -619,13 +617,13 @@ class TuyaDevice {
         setInterval(async () => {
             if (this.connected) {
                 if (this.heartbeatsMissed > 3) {
-                    debugError('Device id '+this.options.id+' not responding to heartbeats...disconnecting')
+                    console.error('Device id ' + this.options.id + ' not responding to heartbeats...disconnecting')
                     this.device.disconnect()
                     await utils.sleep(1)
                     this.connectDevice()
                 } else if (this.heartbeatsMissed > 0) {
                     const errMessage = this.heartbeatsMissed > 1 ? " heartbeats" : " heartbeat"
-                    debugError('Device id '+this.options.id+' has missed '+this.heartbeatsMissed+errMessage)                
+                    console.error('Device id ' + this.options.id + ' has missed ' + this.heartbeatsMissed + errMessage)                
                 }
                 this.heartbeatsMissed++
             }
@@ -634,7 +632,7 @@ class TuyaDevice {
 
     // Publish MQTT
     publishMqtt(topic, message, isDebug) {
-        if (isDebug) { debugState(topic, message) }
+        if (isDebug) { console.log(colors.magenta, topic + ' ' + message) }
         this.mqttClient.publish(topic, message, { qos: 1 });
     }
 }

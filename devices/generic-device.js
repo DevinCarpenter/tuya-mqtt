@@ -1,5 +1,4 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya-mqtt:device')
 const utils = require('../lib/utils')
 
 class GenericDevice extends TuyaDevice {
@@ -15,8 +14,8 @@ class GenericDevice extends TuyaDevice {
             const result = await this.device.get({"schema": true})
             if (!utils.isJsonString(result)) {
                 if (result === 'Schema for device not available') {
-                    debug('Device id '+this.config.id+' failed schema discovery and no custom template defined')
-                    debug('Cannot get initial DPS state data for device '+this.options.name+' but data updates will be publish')
+                    console.log('Device id ' + this.config.id + ' failed schema discovery and no custom template defined')
+                    console.log('Cannot get initial DPS state data for device ' + this.options.name + ' but data updates will be publish')
                 }
             }
         }

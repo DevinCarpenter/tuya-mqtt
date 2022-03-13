@@ -1,7 +1,6 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya-mqtt:device')
-const debugDiscovery = require('debug')('tuya-mqtt:discovery')
 const utils = require('../lib/utils')
+const colors = require('../lib/colors')
 
 class SimpleDimmer extends TuyaDevice {
     async init() {
@@ -67,8 +66,8 @@ class SimpleDimmer extends TuyaDevice {
             device: this.deviceData
         }
 
-        debugDiscovery('Home Assistant config topic: '+configTopic)
-        debugDiscovery(discoveryData)
+        console.log(colors.blue, 'Simple Dimmer Home Assistant config topic: ' + configTopic)
+        console.log(colors.blue, discoveryData)
         this.publishMqtt(configTopic, JSON.stringify(discoveryData))
     }
 }

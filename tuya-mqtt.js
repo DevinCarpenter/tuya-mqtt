@@ -2,14 +2,12 @@
 const fs = require('fs')
 const mqtt = require('mqtt')
 const json5 = require('json5')
-const debug = require('debug')('tuya-mqtt:info')
-const debugCommand = require('debug')('tuya-mqtt:command')
-const debugError = require('debug')('tuya-mqtt:error')
 const SimpleSwitch = require('./devices/simple-switch')
 const SimpleDimmer = require('./devices/simple-dimmer')
 const RGBTWLight = require('./devices/rgbtw-light')
 const GenericDevice = require('./devices/generic-device')
 const utils = require('./lib/utils')
+const colors = require('./lib/colors')
 
 var CONFIG = undefined
 var tuyaDevices = new Array()
@@ -25,7 +23,7 @@ async function processExit(exitCode) {
     for (let tuyaDevice of tuyaDevices) {
         tuyaDevice.device.disconnect()
     }
-    if (exitCode || exitCode === 0) debug('Exit code: '+exitCode)
+    if (exitCode || exitCode === 0) console.log('Exit code: ' + exitCode)
     await utils.sleep(1)
     process.exit()
 }
@@ -61,7 +59,7 @@ function initDevices(configDevices, mqttClient) {
 // Republish devices 2x with 30 seconds sleep if restart of HA is detected
 async function republishDevices() {
     for (let i = 0; i < 2; i++) {
-        debug('Resending device config/state in 30 seconds')
+        console.log('Resending device config/state in 30 seconds')
         await utils.sleep(30)
         for (let device of tuyaDevices) {
             device.republish()
@@ -79,7 +77,7 @@ const main = async() => {
         CONFIG = require('./config')
     } catch (e) {
         console.error('Configuration file not found!')
-        debugError(e)
+        console.error(e)
         process.exit(1)
     }
 
@@ -95,7 +93,7 @@ const main = async() => {
         configDevices = json5.parse(configDevices)
     } catch (e) {
         console.error('Devices file not found!')
-        debugError(e)
+        console.error(e)
         process.exit(1)
     }
 
@@ -112,7 +110,7 @@ const main = async() => {
     })
 
     mqttClient.on('connect', function (err) {
-        debug('Connection established to MQTT server')
+        console.log('Connection established to MQTT server')
         let topic = CONFIG.topic + '#'
         mqttClient.subscribe(topic)
         mqttClient.subscribe('homeassistant/status')
@@ -122,14 +120,14 @@ const main = async() => {
 
     mqttClient.on('reconnect', function (error) {
         if (mqttClient.connected) {
-            debug('Connection to MQTT server lost. Attempting to reconnect...')
+            console.log('Connection to MQTT server lost. Attempting to reconnect...')
         } else {
-            debug('Unable to connect to MQTT server')
+            console.log('Unable to connect to MQTT server')
         }
     })
 
     mqttClient.on('error', function (error) {
-        debug('Unable to connect to MQTT server', error)
+        console.log('Unable to connect to MQTT server', error)
     })
 
     mqttClient.on('message', function (topic, message) {
@@ -141,13 +139,13 @@ const main = async() => {
             const deviceTopicLevel = splitTopic[1]
 
             if (topic === 'homeassistant/status' || topic === 'hass/status' ) {
-                debug('Home Assistant state topic '+topic+' received message: '+message)
+                console.log('Home Assistant state topic '+topic+' received message: ' + message)
                 if (message === 'online') {
                     republishDevices()
                 }
             } else if (commandTopic.includes('command')) {
                 // If it looks like a valid command topic try to process it
-                debugCommand('Received MQTT message -> ', JSON.stringify({
+                console.log(colors.cyan, 'Received MQTT message -> ' + JSON.stringify({
                     topic: topic,
                     message: message
                 }))
@@ -168,7 +166,7 @@ const main = async() => {
                 }
             }
         } catch (e) {
-            debugError(e)
+            console.error(e)
         }
     })
 }

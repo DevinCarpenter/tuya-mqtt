@@ -77,6 +77,7 @@ Tuya bulbs store their HSB color value in a single DPS key using a custom format
 | Topic | Description | Values |
 | --- | --- | --- |
 | state | Power state | on/off |
+| status | Availability/Connectivity state | online/offline |
 | command | Set power state | on/off, 0/1, true/false |
 | white_brightness_state | White mode brightness in % | 0-100 |
 | white_brightness_command | Set white mode brightness in % | 0-100 |

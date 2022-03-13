@@ -97,7 +97,7 @@ tuya/86435357d8b123456789/
 ```
 All additional state/command topics are then built below this level. You can view the connectivity status of the device using the status topic, which reports online/offline based on whether tuya-mqtt has an active connection to the device or not.  The script monitors both the device socket connection for errors and also device heartbeats, to report proper status. 
 ```
-tuya/kitchen_table/state --> online/offline
+tuya/kitchen_table/status --> online/offline
 ```
 You can also trigger the device to send an immediate update of all known device DPS topics by sending the message "get-states" to the command topic (this topic exist for all devices):
 ```

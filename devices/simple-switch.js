@@ -1,7 +1,6 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya-mqtt:device')
-const debugDiscovery = require('debug')('tuya-mqtt:discovery')
 const utils = require('../lib/utils')
+const colors = require('../lib/colors')
 
 class SimpleSwitch extends TuyaDevice {
     async init() {
@@ -27,7 +26,7 @@ class SimpleSwitch extends TuyaDevice {
     }
 
     initDiscovery() {
-        const configTopic = 'homeassistant/switch/'+this.config.id+'/config'
+        const configTopic = 'homeassistant/switch/' + this.config.id + '/config'
 
         const discoveryData = {
             name: (this.config.name) ? this.config.name : this.config.id,
@@ -40,8 +39,8 @@ class SimpleSwitch extends TuyaDevice {
             device: this.deviceData
         }
 
-        debugDiscovery('Home Assistant config topic: '+configTopic)
-        debugDiscovery(discoveryData)
+        console.log(colors.blue, 'Simple Switch Home Assistant config topic: ' + configTopic)
+        console.log(colors.blue, discoveryData)
         this.publishMqtt(configTopic, JSON.stringify(discoveryData))
     }
 }
